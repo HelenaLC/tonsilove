@@ -1,0 +1,14 @@
+{
+"Bn": ["NBC/MBC"],
+"Bm": ["l"],
+"Bd": ["GCBC"],
+"epi": ["a", "b", "c", "d", "e", "h"],
+"Th": ["TC_CD4"],
+"Tc": ["TC_CD8"],
+"PC_IgA": ["PC"],
+"PC_IgM": ["j"],
+"PC_IgG": ["k"],
+"endo": ["f"],
+"FRC": ["g"],
+"macro": ["i"]
+}
