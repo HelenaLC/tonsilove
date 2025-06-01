@@ -1,6 +1,9 @@
+figs/
+imgs/
 outs/raw*
 outs/*rds
 plts/*pdf
 logs/*Rout
-figs/
+data/ref/*rds
+data/raw/*/*gz
 !*/.gitkeep
