@@ -1,0 +1,6 @@
+outs/raw*
+outs/*rds
+plts/*pdf
+logs/*Rout
+figs/
+!*/.gitkeep
