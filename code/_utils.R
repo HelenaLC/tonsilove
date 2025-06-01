@@ -1,0 +1,432 @@
+# color palettes
+.pal <- c(
+    "#DC050C", "#FB8072", "#1965B0", "#7BAFDE", "#882E72",
+    "#B17BA6", "#FF7F00", "#FDB462", "#E7298A", "#E78AC3",
+    "#33A02C", "#B2DF8A", "#55A1B1", "#8DD3C7", "#A6761D",
+    "#E6AB02", "#7570B3", "#BEAED4", "#666666", "#999999",
+    "#aa8282", "#d4b7b7", "#8600bf", "#ba5ce3", "#808000",
+    "#aeae5c", "#1e90ff", "#00bfff", "#56ff0d", "#ffff00")
+
+.pal_ctx <- pals::brewer.set2(8)
+.pal_sid <- c(A1="khaki", A2="lightsteelblue", C1="indianred")
+
+# thresholded z-normalization
+.z <- \(x, th=2.5) {
+    if (is.null(dim(x))) {
+        x[x < 0] <- 0
+        sd <- sd(x, na.rm=TRUE)
+        if (is.na(sd)) sd <- 1
+        x <- x-mean(x, na.rm=TRUE)
+        if (sd != 0) x <- x/sd
+    } else {
+        mus <- colMeans(x)
+        sds <- colSds(x)
+        x <- sweep(x, 2, mus, `-`)
+        x <- sweep(x, 2, sds, `/`)
+    }
+    x[x > +th] <- +th
+    x[x < -th] <- -th
+    return(x)
+}
+
+# upper/lower quantile scaling
+.q <- \(x, margin=1, q=0.01) {
+    if (length(q) == 1)
+        q <- c(q, 1-q)
+    if (!is.matrix(x)) {
+        qs <- quantile(x, q, na.rm=TRUE)
+        x <- (x-qs[1])/diff(qs)
+    } else {
+        qs <- c(rowQuantiles, colQuantiles)[[margin]]
+        qs <- matrix(qs(x, probs=q), ncol=2)
+        x <- switch(margin, 
+            `1`=(x-qs[, 1])/(qs[, 2]-qs[, 1]), 
+            `2`=t((t(x)-qs[, 1])/(qs[, 2]-qs[, 1])))
+    }
+    x[x < 0] <- 0
+    x[x > 1] <- 1
+    return(x)
+}
+
+# hierarchical clustering
+.xo <- \(.) rownames(.)[hclust(dist(.))$order]
+.yo <- \(.) colnames(.)[hclust(dist(t(.)))$order]
+
+# px/mm conversion
+.px2mm <- \(.) .*0.00012028
+.mm2px <- \(.) ./0.00012028
+
+# compute each cell's distance (by default, in mm) 
+# to t(op), b(ottom), r(ight), l(eft) FOV borders
+.d2b <- \(dat) {
+    require(sce, quietly=TRUE)
+    se <- is(dat, "SingleCellExperiment")
+    df <- if (se) data.frame(colData(dat)) else dat
+    xy <- "Center(X|Y)_local_mm"
+    xy <- grep(xy, names(df))
+    x <- df[[xy[1]]]
+    y <- df[[xy[2]]]
+    ds <- data.frame(
+        l=x-min(x), r=max(x)-x,
+        b=y-min(y), t=max(y)-y)
+    if (!se) return(as.matrix(ds))
+    colData(dat)[names(ds)] <- ds
+    return(dat)
+}
+
+# feature selection
+.sel <- \(sce, lab="lab", top=100) {
+    df <- scran::findMarkers(sce, groups=sce[[lab]], direction="up")
+    lapply(df, \(df) rownames(df)[df$Top <= top])
+}
+
+# get reference profiles
+.pbs <- \(sce, ids) {
+    # dependencies
+    library(scuttle)
+    library(SingleCellExperiment)
+    # aggregate counts by both
+    ids <- colData(sce)[ids]
+    pbs <- aggregateAcrossCells(sce, ids, BPPARAM=bp)
+    # library size normalization
+    sizeFactors(pbs) <- NULL
+    pbs <- logNormCounts(pbs, log=FALSE)
+    # average across second
+    aggregateAcrossCells(pbs, 
+        ids=pbs[[names(ids)[1]]], 
+        statistics="mean", 
+        use.assay.type="normcounts") 
+}
+
+# run 'InSituType' (gs = features to use, nk = number of clusters)
+.ist <- \(sce, nk, gs=TRUE, pbs=NULL, bkg=TRUE, ns=c(1e4, 2e4, 1e5)) {
+    # dependencies
+    library(InSituType)
+    library(SingleCellExperiment)
+    # load counts
+    mtx <- counts(sce[gs, ])
+    mtx <- as(t(mtx), "dgCMatrix")
+    # cohorting based on IF data
+    j <- names(cd <- colData(sce))
+    i <- grep("^Mean", j, value=TRUE)
+    i <- setdiff(i, "Mean.G")
+    i <- c("Area", "AspectRatio", i)
+    coh <- fastCohorting(as.matrix(cd[i]))
+    # background estimation
+    neg <- grep("^neg", altExpNames(sce), ignore.case=TRUE, value=TRUE)
+    neg <- sce$nCount_negprobes/nrow(altExp(sce, neg))
+    # update reference profiles
+    pbs <- if (!is.null(pbs)) {
+        bkg <- if (bkg) {
+            rna <- sce$nCount_RNA
+            rna*mean(neg)/mean(rna) 
+        }
+        updateReferenceProfiles(
+            reference_profiles=pbs, reference_sds=NULL,
+            counts=mtx, neg=neg, bg=bkg)$updated_profiles
+    }
+    # clustering
+    insitutype(mtx, 
+        reference_profiles=pbs,
+        update_reference_profiles=FALSE,
+        neg=neg, cohort=coh, n_clusts=nk,
+        n_chooseclusternumber=ns[1],
+        n_benchmark_cells=ns[1],
+        n_phase1=ns[1],
+        n_phase2=ns[2],
+        n_phase3=ns[3])
+}
+
+# relabel 'InSituType' clustering results
+.jst <- \(x, y) {
+    df <- if (is.list(y)) {
+        old <- unlist(y)
+        int <- sapply(y, length)
+        new <- rep.int(names(y), int)
+        data.frame(old, new)
+    } else y
+    i <- x$clust
+    j <- df[[2]][match(i, df[[1]])]
+    j[.] <- i[. <- is.na(j)]
+    names(j) <- names(i)
+    x$clust <- j
+    
+    i <- colnames(x$logliks)
+    j <- df[[2]][match(i, df[[1]])]
+    j[.] <- i[. <- is.na(j)]
+    colnames(x$logliks) <- j
+    colnames(x$profiles) <- j
+    
+    i <- split(seq_along(j), j)
+    x$logliks <- sapply(i, \(.) rowMeans(x$logliks[, ., drop=FALSE]))
+    x$profiles <- sapply(i, \(.) rowMeans(x$profiles[, ., drop=FALSE]))
+    return(x)
+}
+
+# spatial plot
+.plt_xy <- \(x, k, id="", s=NULL, split=TRUE, na=FALSE) {
+    # dependencies
+    library(ggplot2)
+    library(ggrastr)
+    library(SingleCellExperiment)
+    # wrangling
+    if (is.logical(k)) split <- FALSE
+    cd <- if (is.data.frame(x)) x else colData(x)
+    xy <- "Center(X|Y)_global_mm"
+    xy <- grep(xy, names(cd))
+    names(cd)[xy] <- c("x", "y")
+    if (length(names(k))) {
+        cs <- match(colnames(x), names(k))
+        nk <- length(ks <- levels(k <- as.factor(k[cs])))
+    }
+    # aesthetics
+    df <- data.frame(cd, k)
+    dx <- diff(range(df$x))
+    dy <- diff(range(df$y))
+    pt <- if (is.null(s)) min(dx, dy)/100/2 else s
+    # plotting
+    if (!is.numeric(df$k)) {
+        fd <- if (na) df else df[!is.na(df$k), ]
+        p0 <- ggplot(fd, aes(x, y, col=k)) + .thm_xy_d(pt) +
+            scale_color_manual(NULL, drop=FALSE, values=.pal) +
+            ggtitle(.lab(id, sum(!is.na(fd$k))))
+        if (!split) return(p0)
+        ps <- if (split) lapply(c(ks, NA), \(k) {
+            df$. <- if (is.na(k)) is.na(df$k) else grepl(sprintf("^%s$", k), df$k)
+            ggplot(df[order(df$.), ], aes(x, y, col=.)) + 
+                .thm_xy_d(pt) + theme(legend.position="none") +
+                scale_color_manual(NULL, values=c("lavender", "blue")) +
+                ggtitle(.lab(k, sum(df$.)))
+        })
+        c(list(p0), ps)
+    } else {
+        df <- df[order(df$k, na.last=FALSE), ]
+        ggplot(df, aes(x, y, col=k)) + .thm_xy_c(pt) +
+            scale_color_gradientn(NULL, colors=pals::jet(), na.value="grey") +
+            ggtitle(.lab(id, nrow(df)))
+    }
+}
+
+# save series of spatial plots,
+# adjusting for dimensions
+.pdf <- \(ps, nm) {
+    tf <- replicate(length(ps), tempfile(fileext=".pdf"), FALSE)
+    for (. in seq_along(ps)) {
+        df <- ps[[.]]$data
+        dx <- 2*diff(range(df$x))
+        dy <- 2*diff(range(df$y))
+        pdf(tf[[.]], 
+            width=(2+dx/2)/2.54, 
+            height=(0.5+dy/2)/2.54)
+        print(ps[[.]]); dev.off()
+    }
+    qpdf::pdf_combine(unlist(tf), output=nm)
+}
+
+# 'flightpath plot', i.e., embedding of 
+# 'InSituType' assignment likelihoods
+.plt_fp <- \(x, id="") {
+    library(dplyr)
+    library(ggplot2)
+    library(InSituType)
+    ks <- x$clust
+    ll <- x$logliks
+    ps <- x$profiles
+    set.seed(194849)
+    f <- \(.) sample(., min(1e4, length(.)))
+    i <- unlist(lapply(split(seq(nrow(ll)), ks), f))
+    y <- flightpath_layout(logliks=ll[i, ], profiles=ps)
+    df <- data.frame(y$cellpos, k=ks[i])[sample(i), ]
+    fd <- summarize(group_by(df, k), across(c("x", "y"), median))
+    ggplot(df, aes(x, y, col=k)) + 
+        .thm_xy_d(0.1) + theme(aspect.ratio=1, legend.position="none") +
+        geom_text(data=fd, aes(label=k), size=1.5, col="black") +
+        scale_color_manual(values=.pal) + 
+        ggtitle(.lab(id, sum(!is.na(ks))))
+}
+
+# compositional barplot
+.plt_fq <- \(z, x, y, id="", by=NULL, hc=TRUE, h=FALSE, a=1, ...) {
+    library(ggplot2)
+    library(SingleCellExperiment)
+    # tabulate cell counts
+    if (is(z, "SingleCellExperiment"))
+        z <- data.frame(colData(z))
+    ns <- table(z[[x]], z[[y]])
+    df <- as.data.frame(ns)
+    i <- match(df[[1]], z[[x]])
+    j <- setdiff(names(z), c(x, y))
+    df <- cbind(df, z[i, j])
+    if (!is.null(by)) df[[by]] <- z[[by]][i]
+    # hierarchical clustering
+    xo <- if (hc) {
+        ds <- dist(prop.table(ns, 1))
+        ds[is.na(ds)] <- 0
+        hc <- hclust(ds)
+        hc$labels[hc$order]
+    } else rownames(ns)
+    # plotting
+    aes <- if (h) {
+        list(
+            coord_flip(expand=FALSE), theme(
+                axis.text.x=element_blank(), 
+                axis.title.x=element_blank()))
+    } else {
+        list(coord_cartesian(expand=FALSE), theme(
+            axis.text.y=element_blank(),
+            axis.title.y=element_blank(),
+            axis.text.x=element_text(angle=90, hjust=1, vjust=0.5)))
+    }
+    ggplot(df, aes(Var1, Freq, fill=Var2)) +
+        (if (!is.null(by)) facet_wrap(by, ...)) +
+        geom_col(
+            position="fill", col="white", alpha=a,
+            linewidth=0.1, width=1, key_glyph="point") +
+        scale_fill_manual(values=.pal) +
+        labs(x=x, y="frequency") +
+        ggtitle(.lab(id, nrow(z))) +
+        scale_x_discrete(limits=xo) +
+        .thm_fig_d("minimal", "f") + 
+        aes + theme(
+            panel.grid=element_blank(),
+            axis.ticks=element_blank())
+}
+
+# align shape layer exported from napari with
+# local/global (FOV/tissue) cell coordinates
+# sce = 'SingleCellExperiment'
+# id = character string; shape identifier
+# dir = character string; directory housing shape files
+# xy_global/local = pattern matching tissue/FoV coordinates
+.align_shape <- \(sce, dir=".", 
+    xy_global="Center._global_px", 
+    xy_local="Center._local_px") {
+    # dependencies
+    library(dplyr)
+    library(SingleCellExperiment)
+    . <- c("md", "px", "mm")
+    . <- paste0(., ".csv")
+    . <- file.path(dir, .)
+    # get constants
+    df <- read.csv(.[1])
+    y_delta_mm <- df$y_delta_mm
+    x_delta_mm <- df$x_delta_mm
+    y_px_mm_ratio <- df$y_px_mm_ratio
+    x_px_mm_ratio <- df$x_px_mm_ratio
+    fov_id <- df$chosen_FOV
+    fov_px <- 4256
+    # get coordinates
+    xy_px <- read.csv(.[2])
+    xy_mm <- read.csv(.[3])
+    # select cells in reference FOV
+    cd <- data.frame(colData(sce)) |> 
+        dplyr::filter(fov == fov_id) |> 
+        select(cell_id, 
+            matches(xy_global), 
+            matches(xy_local)) |> 
+        slice_head(n=1)
+    # cd <- mutate(cd,
+    #     x_slide_px=x_slide_mm/x_px_mm_ratio,
+    #     y_slide_px=y_slide_mm/x_px_mm_ratio)
+    xy_global <- grep(xy_global, names(cd))
+    xy_local <- grep(xy_local, names(cd))
+    # compute location of the FOV on the slide in px via difference 
+    # between location of cell in FOV and slide; subtract FOV height
+    # from y-coordinates as origin is in the top-left corner
+    fov_px_x <- cd[[xy_global[1]]]-cd[[xy_local[1]]]
+    fov_px_y <- cd[[xy_global[2]]]-(fov_px-cd[[xy_local[2]]])
+    # convert position of the FOV's top left 
+    # corner within the slide from px to mm
+    fov_mm_x <- fov_px_x*x_px_mm_ratio
+    fov_mm_y <- fov_px_y*x_px_mm_ratio+fov_px*x_px_mm_ratio
+    # convert shape coordinates to fit objects frame of reference
+    xy <- dplyr::rename(
+        mutate(xy_mm, y_vals=-y_vals), 
+        y_global_mm="y_vals", x_global_mm="x_vals")
+    # move shape into right location using the 
+    # reference FOV's top-left corner as anchor
+    xy$y_global_mm <- xy$y_global_mm-xy$y_global_mm[1]+fov_mm_y-y_delta_mm 
+    xy$x_global_mm <- xy$x_global_mm-xy$x_global_mm[1]+fov_mm_x+x_delta_mm 
+    xy$x_global_px <- .mm2px(xy$x_global_mm)
+    xy$y_global_px <- .mm2px(xy$y_global_mm)
+    return(xy)
+}
+
+# subset 'SingleCellExperiment' by ROI's xy-coordinates;
+# in case an ROI spans multiple disconnected selections
+# (according to column 'id'), consider each separately
+.subset_shape <- \(se, df, xy="Center._global_px", id="shape_id") {
+    if (is.null(df[[id]])) df[[id]] <- 0
+    require(SummarizedExperiment, quiet=TRUE)
+    xy <- grep(xy, names(colData(se)))
+    cs <- by(df, df[[id]], \(fd) {
+        sp::point.in.polygon(
+            se[[xy[1]]], se[[xy[2]]], 
+            fd$x_global_px, fd$y_global_px) == 1
+    })
+    cs <- do.call(cbind, as.list(cs))
+    se[, rowAnys(cs)]
+}
+
+# aesthetics
+suppressPackageStartupMessages({
+    library(ggplot2)
+    library(patchwork)
+})
+
+# prettified plot title in the style of
+# 'title (N = count)' with bold 'title'
+.lab <- \(x, n=NULL) {
+    if (is.null(n)) {
+        if (is.null(x)) "" else # blanc
+            bquote(bold(.(x)))  # 'x' only
+    } else {
+        n <- format(n, big.mark=",")
+        if (is.null(x)) bquote("N ="~.(n)) else # 'n' only
+            bquote(bold(.(x))~"(N ="~.(n)*")")  # both
+    }
+}
+
+# base figure theme
+.thm_fig <- \(.="minimal") list(
+    get(paste0("theme_", .))(6),
+    theme(
+        legend.key=element_blank(),
+        plot.background=element_blank(),
+        panel.background=element_blank(),
+        strip.background=element_blank(),
+        panel.grid.minor=element_blank(),
+        legend.background=element_blank(),
+        plot.title=element_text(hjust=0.5)))
+
+# discrete coloring
+.thm_fig_d <- \(., l=c("c", "f")) {
+    aes <- switch(match.arg(l),
+        c=list(alpha=2, shape=19, size=2),
+        f=list(alpha=1, shape=21, stroke=0, col=NA, size=1.5))
+    thm <- list(theme(
+        legend.key.size=unit(0, "lines")),
+        guides(col=guide_legend(ncol=1, override.aes=aes)),
+        guides(fill=guide_legend(ncol=1, override.aes=aes)))
+    c(.thm_fig(.), list(thm))
+}
+
+# continuous coloring
+.thm_fig_c <- \(.) {
+    thm <- theme(
+        legend.key.width=unit(0.2, "lines"),
+        legend.key.height=unit(0.4, "lines"))
+    c(.thm_fig(.), list(thm))
+}
+
+# theme for spatial plots
+.thm_xy <- \(s=0.1) list(
+    ggrastr::geom_point_rast(shape=16, stroke=0, size=s, raster.dpi=600),
+    scale_x_continuous(expand=expansion(0, 0.1)),
+    scale_y_continuous(expand=expansion(0, 0.1)),
+    coord_equal(), theme(
+        plot.margin=margin(),
+        plot.title=element_text(hjust=0.5),
+        panel.background=element_rect(color="grey", fill=NA)))
+.thm_xy_d <- \(s=0.1) c(.thm_fig_d("void"), .thm_xy(s))
+.thm_xy_c <- \(s=0.1) c(.thm_fig_c("void"), .thm_xy(s))
