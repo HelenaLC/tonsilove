@@ -1,6 +1,7 @@
 # args <- list(
+#     "outs/pbt.rds",
 #     "data/ref/sce.rds",
-#     "data/ref/mtx.rds",
+#     "meta/lab/sub.json",
 #     "data/ref/mty,tcs.rds")
 
 # dependencies
@@ -11,8 +12,8 @@ suppressPackageStartupMessages({
 })
 
 # loading
-ref <- readRDS(args[[1]])
-mtx <- readRDS(args[[2]])
+pbs <- readRDS(args[[1]])
+ref <- readRDS(args[[2]])
 
 # subset T cells
 kid <- "annotation_figure_1"
@@ -39,11 +40,13 @@ idx <- match(ref[[kid]], unlist(lys))
 table(ref[[kid <- "lab"]] <- lab[idx])
 
 # selection & aggregation
-mgs <- findMarkers(ref, groups=ref$lab, block=ref[[sid]], direction="up")
-top <- lapply(mgs, \(df) rownames(df)[df$Top <= 50])
-gs <- lapply(top, intersect, rownames(mtx))
+mgs <- findMarkers(ref, 
+    groups=ref$lab, block=ref[[sid]], 
+    direction="up", BPPARAM=bp)
+top <- lapply(mgs, \(df) rownames(df)[df$Top <= 100])
+gs <- lapply(top, intersect, rownames(pbs))
 sapply(gs, length); length(gs <- unique(unlist(gs)))
-pbs <- .pbs(ref[gs, ], ids=c("lab", sid))
+pbs <- .pbs(ref[gs, ], ids=c("lab", sid), bp=bp)
 
 # saving
-saveRDS(assay(pbs), args[[3]])
+saveRDS(assay(pbs), args[[4]])

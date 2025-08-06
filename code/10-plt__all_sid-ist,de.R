@@ -13,7 +13,9 @@ ist <- lapply(args[[1]][1], readRDS)
 
 # wrangling
 se <- lapply(ist, \(ist) {
-    es <- normalizeCounts(ist$profiles)
+    es <- ist$profiles
+    es <- es[, setdiff(colnames(es), "undefined")]
+    es <- normalizeCounts(es)
     cd <- data.frame(kid=colnames(es))
     SingleCellExperiment(list(counts=es), colData=cd)
 })

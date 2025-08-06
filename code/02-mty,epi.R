@@ -2,7 +2,7 @@
 #     "outs/pbt.rds",
 #     "data/ref/sce.rds",
 #     "meta/lab/sub.json",
-#     "data/ref/mty,str.rds")
+#     "data/ref/mty,epi.rds")
 
 # dependencies
 suppressPackageStartupMessages({

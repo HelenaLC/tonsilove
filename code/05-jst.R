@@ -5,14 +5,25 @@ suppressPackageStartupMessages({
 })
 
 # loading
-set.seed(250601)
+set.seed(250623)
 pbs <- readRDS(args[[1]])
 sce <- lapply(args[[2]], readRDS)
-sce <- do.call(cbind, sce)
+ncol(sce <- do.call(cbind, sce))
 
+if (is.matrix(pbs)) {
+    # using reference profiles
+    nk <- if (wcs$sub == "tcs") 0 else seq(2, 4)
+    gs <- TRUE
+    nrow(pbs)
+} else {
+    # using feature selection only
+    nk <- seq(2, 8)
+    gs <- pbs
+    pbs <- NULL
+    length(gs)
+}
 # clustering
-nk <- seq(2, ifelse(is.null(pbs), 8, 5))
-ist <- .ist(sce, pbs=pbs, nk=nk, ns=c(2e4, 4e4, 2e5))
+ist <- .ist(sce, gs=gs, pbs=pbs, nk=nk, ns=c(2e4, 4e4, 2e5))
 ids <- intersect(letters, unique(ist$clust))
 ids <- c(sort(colnames(pbs)), ids)
 ist$clust <- factor(ist$clust, ids)

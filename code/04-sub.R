@@ -1,11 +1,13 @@
 # dependencies
 suppressPackageStartupMessages({
+    library(jsonlite)
     library(SingleCellExperiment)
 })
 
 # loading
-sce <- readRDS(args[[1]])
-ist <- readRDS(args[[2]])
+sub <- fromJSON(args[[1]])
+sce <- readRDS(args[[2]])
+ist <- readRDS(args[[3]])
 
 # wrangling
 idx <- match(
@@ -13,18 +15,15 @@ idx <- match(
     names(kid <- ist$clust))
 table(sce$lv1 <- kid[idx])
 
-# define subsets
-sub <- list(
-    tcs=c("Th", "Tc", "ILC"),
-    str=c("epi", "endo", "FDC", "FRC"),
-    bcs=c("Bn", "Bm", "Bl", "Bd", "PC"),
-    mye=c("macro", "mono", "mast", "gran", "DC", "PDC"))
-# spot check; assure that all clusters are covered
-ks <- sort(unique(kid)); ks[!ks %in% unlist(sub)]
+# spot check; assure that 
+# all clusters are covered
+ks <- sort(unique(kid))
+ks[!ks %in% unlist(sub)]
 
 # saving
 for (. in names(sub)) {
-    tmp <- sce[, sce$lv1 %in% sub[[.]]]; tmp$sub <- .
-    rds <- grep(., args[-c(1,2)], value=TRUE)
-    base::saveRDS(tmp, rds)
+    tmp <- sce[, sce$lv1 %in% sub[[.]]]
+    tmp$lv1 <- factor(tmp$lv1, sub[[.]])
+    rds <- grep(., args[-seq(3)], value=TRUE)
+    tmp$sub <- .; base::saveRDS(tmp, rds)
 }

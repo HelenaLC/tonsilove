@@ -48,9 +48,7 @@ sr <- bplapply(is, BPPARAM=bp, \(.) {
         ad <- SCE2AnnData(sce[, .], X_name="logcounts")
         ct$tl$spatial_communication(ad,
             database_name="CellChatDB",
-            # average cell is 10x10um; here, we consider 
-            # a distance threshold of 10 cells = 0.1mm
-            dis_thr=0.1,  
+            dis_thr=0.02,  
             df_ligrec=db,
             heteromeric=TRUE,
             pathway_sum=TRUE,

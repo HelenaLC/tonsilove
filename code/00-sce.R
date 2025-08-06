@@ -13,15 +13,12 @@ sce <- HCATonsilData(
     version="2.0",
     processedCounts=FALSE)
 
-# filtering
+# wrangling
 cs <- grep("3P$", sce$type)
 sce <- logNormCounts(sce[, cs])
-ref <- loadHDF5SummarizedExperiment(args[[1]])
-gs <- intersect(rownames(ref), rownames(sce))
 reducedDims(sce) <- list()
-dim(sce <- sce[gs, ])
-
-# saving
 y <- as(assay(sce), "dgCMatrix")
 assay(sce, withDimnames=FALSE) <- y
+
+# saving
 base::saveRDS(sce, args[[2]])

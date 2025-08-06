@@ -7,8 +7,13 @@
     "#aa8282", "#d4b7b7", "#8600bf", "#ba5ce3", "#808000",
     "#aeae5c", "#1e90ff", "#00bfff", "#56ff0d", "#ffff00")
 
-.pal_ctx <- pals::brewer.set2(8)
-.pal_sid <- c(A1="khaki", A2="lightsteelblue", C1="indianred")
+.pal_sid <- c(C1="indianred", A1="khaki", A2="lightsteelblue")
+.pal_sub <- c(bcs="#a6cee3", epi="#b2df8a", mye="#FFD700", str="#FB6496", tcs="#CAB2D6")
+.pal_ctx <- unname(pals::trubetskoy(15))
+.pal_cty <- .pal_ctx <- c(
+    EPI="#0067A5", SM="#2B3D26",
+    GC="#E68FAC", MZ="#BE0032",
+    BCZ="#F3C300", TCZ="#C2B280", CTS="#008856")
 
 # thresholded z-normalization
 .z <- \(x, th=2.5) {
@@ -81,9 +86,10 @@
 }
 
 # get reference profiles
-.pbs <- \(sce, ids) {
+.pbs <- \(sce, ids, bp) {
     # dependencies
     library(scuttle)
+    library(BiocParallel)
     library(SingleCellExperiment)
     # aggregate counts by both
     ids <- colData(sce)[ids]
@@ -93,9 +99,8 @@
     pbs <- logNormCounts(pbs, log=FALSE)
     # average across second
     aggregateAcrossCells(pbs, 
-        ids=pbs[[names(ids)[1]]], 
-        statistics="mean", 
-        use.assay.type="normcounts") 
+        ids=pbs[[names(ids)[1]]], BPPARAM=bp,
+        statistics="mean", use.assay.type="normcounts") 
 }
 
 # run 'InSituType' (gs = features to use, nk = number of clusters)
@@ -157,10 +162,86 @@
     colnames(x$logliks) <- j
     colnames(x$profiles) <- j
     
-    i <- split(seq_along(j), j)
-    x$logliks <- sapply(i, \(.) rowMeans(x$logliks[, ., drop=FALSE]))
-    x$profiles <- sapply(i, \(.) rowMeans(x$profiles[, ., drop=FALSE]))
+    # i <- split(seq_along(j), j)
+    # x$logliks <- sapply(i, \(.) rowMeans(x$logliks[, ., drop=FALSE]))
+    # x$profiles <- sapply(i, \(.) rowMeans(x$profiles[, ., drop=FALSE]))
     return(x)
+}
+
+# df = `arrow::Table` containing cell boundaries
+# sce = corresponding 'SingleCellExperiment'
+# c = character string; feature name or 'colData' to color points by
+# t = "n"(o transformation), "z"(-normalization), or "q"(uantile) scaling
+# th = scalar numeric; threshold to use when 't == "z"'
+# qs = scalar or length-2 numeric; quantiles to use when 't == "q"'
+# hl = logical/character vector; cells to highlight (others are 'blacked out')
+.plt_ps <- \(df, sce=NULL, c="white", a=1,
+    t=c("n", "z", "q"), th=2.5, qs=0.01, 
+    hl=NULL, lw=0.05, lc="lightgrey", id="") {
+    library(dplyr)
+    library(ggplot2)
+    library(SingleCellExperiment)
+    # filter for cells present in object
+    cs <- pull(df, "cell", as_vector=TRUE)
+    cs <- which(cs %in% sce$cell)
+    df <- df[cs, ] |>
+        mutate(x=.px2mm(x_global_px)) |>
+        mutate(y=.px2mm(y_global_px)) 
+    # join cell metadata & polygons data
+    i <- match(pull(df, "cell", as_vector=TRUE), sce$cell)
+    j <- setdiff(names(colData(sce)), names(df))
+    df <- cbind(as.data.frame(df), colData(sce)[i, j])
+    if (c %in% rownames(sce)) {
+        df[[c]] <- logcounts(sce)[c, i]
+        # continuous coloring
+        pal <- switch(match.arg(t), 
+            n={ # no transformation
+                scale_fill_gradientn(colors=pals::jet())
+            },
+            z={ # thresholded z-normalization
+                df[[c]] <- .z(df[[c]], th)
+                scale_fill_gradientn(
+                    colors=pals::coolwarm(),
+                    limits=c(-th, th), n.breaks=5)
+            },
+            q={ # lower/upper quantile scaling
+                df[[c]] <- .q(df[[c]], qs)
+                scale_fill_gradientn(
+                    colors=pals::jet(),
+                    limits=c(0, 1), n.breaks=5)
+            })
+        thm <- list(pal, .thm_fig_c("void"))
+    } else if (c %in% names(df)) {
+        if (!is.numeric(df[[c]])) {
+            # discrete coloring
+            pal <- if (nlevels(df[[c]]) == 5) .pal_sub else .pal
+            if (is.null(names(pal))) {
+                names(pal) <- levels(df[[c]])
+                pal <- pal[!is.na(names(pal))]
+            }
+            pal <- scale_fill_manual(NULL, values=pal, 
+                na.value="lightgrey", breaks=names(pal))
+            thm <- list(pal, .thm_fig_d("void", "f"))
+        } else {
+            pal <- scale_fill_gradientn(colors=pals::jet())
+            thm <- list(pal, .thm_fig_c("void"))
+        }
+    } else {
+        df[[c <- "foo"]] <- c
+        thm <- list(scale_fill_identity(NULL))
+    }
+    # highlighting
+    if (!is.null(hl)) {
+        if (is.logical(hl)) 
+            hl <- sce$cell[hl]
+        df[[c]][!df$cell %in% hl] <- NA
+    }
+    # plotting
+    ggplot(df, aes(x, y, fill=.data[[c]], group=cell)) + 
+        ggrastr::rasterize(dpi=600,
+        geom_polygon(col=lc, alpha=a, linewidth=lw, key_glyph="point")) +
+        ggtitle(.lab(id, length(unique(df$cell)))) +
+        coord_equal(expand=FALSE) + thm
 }
 
 # spatial plot
@@ -177,7 +258,8 @@
     names(cd)[xy] <- c("x", "y")
     if (length(names(k))) {
         cs <- match(colnames(x), names(k))
-        nk <- length(ks <- levels(k <- as.factor(k[cs])))
+        ko <- order(tolower(ks <- unique(k)))
+        nk <- length(ks <- levels(k <- factor(k[cs], ks[ko])))
     }
     # aesthetics
     df <- data.frame(cd, k)
@@ -188,7 +270,8 @@
     if (!is.numeric(df$k)) {
         fd <- if (na) df else df[!is.na(df$k), ]
         p0 <- ggplot(fd, aes(x, y, col=k)) + .thm_xy_d(pt) +
-            scale_color_manual(NULL, drop=FALSE, values=.pal) +
+            scale_color_manual(NULL, drop=FALSE, values=.pal, 
+                na.value="grey", breaks=\(.) setdiff(., NA)) +
             ggtitle(.lab(id, sum(!is.na(fd$k))))
         if (!split) return(p0)
         ps <- if (split) lapply(c(ks, NA), \(k) {
@@ -207,17 +290,50 @@
     }
 }
 
+.plt_rgb <- \(x, id, s=NULL) {
+    # dependencies
+    library(ggplot2)
+    library(ggrastr)
+    library(SingleCellExperiment)
+    # wrangling
+    xy <- "Center(X|Y)_global_mm"
+    xy <- grep(xy, names(colData(x)))
+    names(colData(x))[xy] <- c("x", "y")   
+    y <- reducedDim(x, "PCA")[, seq_len(3)]
+    z <- sweep(y, 1, rowMins(y), `-`)
+    z <- sweep(z, 1, rowMaxs(z), `/`)
+    z <- apply(z, 1, \(.) rgb(.[1], .[2], .[3]))
+    df <- data.frame(colData(x), y, z)
+    # aesthetics
+    dx <- diff(range(df$x))
+    dy <- diff(range(df$y))
+    pt <- if (is.null(s)) min(dx, dy)/100/2 else s
+    # plotting
+    p0 <- ggplot(df, aes(x, y, col=z)) + 
+        ggtitle(.lab(id, nrow(df))) +
+        scale_color_identity() + 
+        .thm_xy_d(pt)
+    ps <- lapply(colnames(y), \(.) {
+        ggplot(df, aes(x, y, col=.q(.data[[.]]))) + 
+            scale_color_gradientn(
+                colors=pals::jet(), n.breaks=6,
+                paste0("q-scaled\n", ., " value")) +
+            ggtitle(.lab(id, nrow(df))) + .thm_xy_c(pt)
+    })
+    c(list(p0), ps)
+}
+
 # save series of spatial plots,
 # adjusting for dimensions
-.pdf <- \(ps, nm) {
+.pdf <- \(ps, nm, sf=1) {
     tf <- replicate(length(ps), tempfile(fileext=".pdf"), FALSE)
     for (. in seq_along(ps)) {
         df <- ps[[.]]$data
-        dx <- 2*diff(range(df$x))
-        dy <- 2*diff(range(df$y))
+        dx <- sf*diff(range(df$x))
+        dy <- sf*diff(range(df$y))
         pdf(tf[[.]], 
-            width=(2+dx/2)/2.54, 
-            height=(0.5+dy/2)/2.54)
+            width=(2+dx)/2.54, 
+            height=(0.5+dy)/2.54)
         print(ps[[.]]); dev.off()
     }
     qpdf::pdf_combine(unlist(tf), output=nm)
@@ -376,20 +492,31 @@ suppressPackageStartupMessages({
 
 # prettified plot title in the style of
 # 'title (N = count)' with bold 'title'
-.lab <- \(x, n=NULL) {
+.lab <- \(x, n=NULL, m=FALSE) {
     if (is.null(n)) {
         if (is.null(x)) "" else # blanc
             bquote(bold(.(x)))  # 'x' only
     } else {
         n <- format(n, big.mark=",")
-        if (is.null(x)) bquote("N ="~.(n)) else # 'n' only
-            bquote(bold(.(x))~"(N ="~.(n)*")")  # both
+        if (is.null(x)) {
+            # 'n' only
+            bquote("N ="~.(n))
+        } else {
+            # both
+            if (!m) {
+                # single line
+                bquote(bold(.(x))~"(N ="~.(n)*")")
+            } else {
+                # w/ linebreak
+                bquote(atop(bold(.(x)),"(N ="~.(n)*")"))
+            }
+        }
     }
 }
 
 # base figure theme
 .thm_fig <- \(.="minimal") list(
-    get(paste0("theme_", .))(6),
+    get(paste0("theme_", .))(4),
     theme(
         legend.key=element_blank(),
         plot.background=element_blank(),
