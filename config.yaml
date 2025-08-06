@@ -1,1 +1,1 @@
-R: "R_LIBS_USER=~/software/bioc320 /Library/Frameworks/R.framework/Versions/4.4-arm64/Resources/bin/R"
+R: "R_LIBS_USER=~/software/bioc321 /Library/Frameworks/R.framework/Versions/4.5-arm64/Resources/bin/R"
