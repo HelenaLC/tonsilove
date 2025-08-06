@@ -1,0 +1,7 @@
+{
+"epi": ["epi"],
+"tcs": ["Th", "Tc", "ILC"],
+"str": ["EC", "FDC", "FRC"],
+"bcs": ["Bn", "Bm", "Bd", "Bl", "PC"],
+"mye": ["macro", "mono", "mast", "gran", "DCc", "DCp"]
+}

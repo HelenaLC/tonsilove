@@ -1,14 +1,18 @@
 {
 "Bn": ["NBC/MBC"],
-"Bm": ["l"],
+"Bm": ["d", "n"],
 "Bd": ["GCBC"],
-"epi": ["a", "b", "c", "d", "e", "h"],
+"Bl": ["o"],
 "Th": ["TC_CD4"],
 "Tc": ["TC_CD8"],
-"PC_IgA": ["PC"],
-"PC_IgM": ["j"],
-"PC_IgG": ["k"],
-"endo": ["f"],
-"FRC": ["g"],
-"macro": ["i"]
+"PC": ["j"],
+"PC": ["l"],
+"PC": ["PC"],
+"EC": ["g"],
+"DCp": ["PDC"],
+"DCc": ["DC", "k"],
+"FDC": ["FDC"],
+"FRC": ["i"],
+"macro": ["f"],
+"epi": ["a", "b", "c", "e", "h", "m"]
 }
