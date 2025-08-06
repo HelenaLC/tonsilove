@@ -1,8 +1,8 @@
 figs/
 imgs/
-outs/raw*
-outs/*rds
+outs/*
 plts/*pdf
+qlts/*pdf
 logs/*Rout
 data/ref/*rds
 data/raw/*/*gz
