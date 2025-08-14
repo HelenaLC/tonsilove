@@ -34,16 +34,12 @@ mgs <- list(
         PC_IgA=c()
     ),
     tcs=list(
-        "NK/ILC1"=c(
-            "CD8A", "CD8B", "CD4", 
-            "CD3D", "CD3E", "CD3G"),
-        ILC3=c(
-            "NCAM1", "PRF1", "GZMB",
-            "NCR1", "KIT", "HLA-DPA1"),
+        ILC3=c("CD8A", "CD8B", "CD4", "CD3D", "CD3E", "CD3G"),
+        "NK/ILC1"=c("KIT", "HLA-DPA1", "PRF1", "NCAM1", "GZMB", "NCR1"),
         Trm=c(),
         Tc=c("ITGA1", "ITGAE", "CCL5", "GZMK", "EOMES", "CXCR6", "NKG7"),
         Tcn=c(),
-        Treg=c("MAF", "IRF4", "FOXP3", "CTLA4", "IL2RA", "LAG3", "IL10"),
+        Treg=c("MAF", "FOXP3", "CTLA4", "IL2RA", "LAG3", "IL10"),
         The=c("IL17A", "RORA", "IL18R1", "KLRB1", "CD84"),
         Thn=c("CD40LG", "TCF7", "CD69", "IL7R", "CCR7", "SELL"),
         Tfh=c("ICOS", "TIGIT", "PDCD1", "CXCR5"),
@@ -53,7 +49,7 @@ mgs <- list(
         mast=c("KIT", "IL1RL1", "TPSAB1/B2", "RGS13"),
         gran=c("CXCL8", "CXCR1", "CXCR2", "IL1B"),
         mono.nc=c("FCGR3A/B", "S100A8", "S100A9", "VCAN"),
-        mono.c=c("CD14", "IL6", "TLR2", "CD1C", "ITGAM", "NOTCH2"),
+        mono.c=c("CD14", "IL6", "TLR2", "ITGAM"),
         mye.cyc=c("MKI67", "PTTG1", "TUBB", "TUBB4B", "TOP2A"),
         macro.tbm=c("CLU", "NUPR1", "APOE", "APOC1", "VCAM1"),
         macro.act=c(
@@ -67,25 +63,35 @@ mgs <- list(
     ),
     str=list(
         LEC=c("LYVE1", "PROX1"),
-        BEC=c("COL4A1", "CAV1", "CLEC14A", "FLT1", "CDH5"),
-        BEC.act=c("CD34", "CD93", "ENG", "VWF", "PECAM1", "ICAM1", "IL1R1", "IL33"),
+        BEC=c("HEY1", "DLL4", "COL4A1", "CAV1", "FLT1", "CLEC14A", "CDH5", "CD34"),
+        BEC.act=c("CD93", "ENG", "VWF", "PECAM1","ITGA3", "ICAM1", "IL1R1", "IL33"),
         FRCcts=c(
-            "COL6A3", "COL1A1", "COL1A2", "COL3A1", 
-            "PTGDS", "DCN", "ANGPTL1", "PDGFRA", "FOS", "CFD"),
-        FRCtcz=c("COL14A1", "CCL2", "CXCL12", "CXCL10", "CCL19"),
+            "COL6A3", "COL1A1", "COL1A2", "COL3A1",
+            "DCN", "ANGPTL1", "PDGFRA", "FOS", "CFD"),
+        FRCtcz=c("COL14A1", "CCL2", "CXCL12", "CXCL10", "CCL19", "CCL21"),
         FRCse=c("LUM", "ITGA8", "ITGB8"),
         FRCpv=c("PDGFRB", "COL5A3", "COL18A1", "NOTCH3", "ACTA2", "MYL9"),
         FDC=c("SRGN", "CLU", "VCAM1", "CXCL13", "FN1")
     ),
     epi=list(
         epi.api1=c("KRT16", "KRT17", "KRT80", "SQSTM1", "CRYAB", "IL36G"),
-        epi.api2=c("IL22RA1", "KRT23", "KRT13", "KRT4", "CEACAM6", "AREG", "IL1A"),
-        epi.bas=c("KRT15", "NGFR", "ITGA3", "WNT7A"),
-        epi.sup=c("KRT14", "KRT5", "STMN1", "PCNA", "WIF1", "MT1X", "ROR1", "FABP5", "WNT11"),
-        epi.trn1=c("ESR1", "FAS", "JAG1", "TNFRSF10B", "PGR"),
-        epi.trn2=c("CDH1", "SOX2", "HSPB1", "SFN", "LMNA"),
-        epi.trn3=c("KRT7", "KRT8", "KRT18", "KRT19", "CD274", "PECAM1", "EPCAM"),
-        epi.trn4=c("CCL20", "CCL22", "KRT10", "CLDN4", "REG1A", "SQLE", "MMP7")
+        epi.api2=c(
+            "IL22RA1", "KRT23", "KRT13", "KRT4", "CEACAM6", 
+            "AREG", "IL1A", "IL20", "IL23A", "CXCL8"),
+        epi.bas=c("KRT15", "NGFR", "ITGA3", "ITGA6", 
+            "FGF1", "FGF2", "CD44", "BMP1", "EGFR"),
+        epi.sup=c(
+            "STMN1", "PCNA", "MT1X", "KRT14", 
+            "ROR1", "KRT5", "WIF1", "FABP5"),
+        epi.trn1=c(
+            "ESR1", "FAS", "JAG1", "TNFRSF10B", "PGR",
+            "PTGS1", "NOTCH3", "MECOM"),
+        epi.trn2=c("CDH1", "SOX2", "SFN", "HSPB1", "LMNA"),
+        epi.trn3=c(
+            "KRT7", "KRT8", "KRT18", "KRT19", "CD274", 
+            "EPCAM", "IFIH1", "IFI27", "CCL20"),
+        epi.trn4=c(
+            "CCL22", "KRT10", "CLDN4", "REG1A", "CLEC5A", "MMP7")
     )
 )
 grep("TUBB", rownames(lys[[1]]), value=TRUE)
