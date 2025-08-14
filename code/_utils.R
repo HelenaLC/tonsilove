@@ -13,7 +13,7 @@
 .pal_cty <- .pal_ctx <- c(
     EPI="#0067A5", SM="#2B3D26",
     GC="#E68FAC", MZ="#BE0032",
-    BCZ="#F3C300", TCZ="#C2B280", CTS="#008856")
+    `B/T`="#F3C300", TCZ="#C2B280", CTS="#008856")
 
 # thresholded z-normalization
 .z <- \(x, th=2.5) {
