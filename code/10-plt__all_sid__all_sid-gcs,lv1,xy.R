@@ -35,7 +35,7 @@ ps <- mapply(
             aes(x, y, group=roi), df, fill=NA, col="black",
             inherit.aes=FALSE, linewidth=0.2, linetype=2) +
         scale_color_manual(NULL, 
-            values=rep(unname(pals::alphabet()), 10),
+            values=rep(unname(pals::polychrome()[-2]), 5),
             na.value="lightgrey", breaks=levels(sce$roi)) +
         ggrepel::geom_label_repel(
             box.padding=unit(0.1, "lines"),
