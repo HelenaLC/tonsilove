@@ -48,7 +48,8 @@ xy <- fd[ap, mm]; yx <- fd[!ap, mm]
 nn <- nn2(xy, yx, k=10)
 ds <- rowMeans(nn$nn.dist)
 fd <- data.frame(fd[!ap, ], ds)
-fd <- filter(fd, !grepl("epi", kid))
+fd <- filter(fd, sub %in% c("bcs", "tcs", "mye"))
+fd <- filter(fd, !grepl("Bd|Bl|Bgc", kid))
 
 # restrict to most frequent subpopulations
 ns <- tail(sort(table(fd$kid)), 20)

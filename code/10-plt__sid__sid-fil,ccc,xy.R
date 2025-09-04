@@ -1,6 +1,6 @@
 # wcs <- list(sid="C1")
 # args <- as.list(sprintf(c(
-#     "outs/fil-%s.rds", "outs/ccc-%s.rds", 
+#     "outs/fil-%s.rds", "outs/ccc-%s.rds",
 #     "plts/fil,ccc,xy,%s.pdf"), wcs$sid))
 
 # dependencies
@@ -36,8 +36,9 @@ ys <- lapply(ccc, \(x) {
 }) |> Reduce(f=`+`)/2
 
 # plotting
-vs <- sort(colVars(ys))
-yt <- tail(names(vs), 15)
+np <- ifelse(wcs$x == "A2", 15, 30)
+yt <- tail(names(sort(colVars(ys))), np)
+yt <- c("GALECTIN")
 ps <- lapply(yt, \(.) {
     o <- order(y <- .q(ys[, .]))
     .plt_xy(sce[, o], (y[o]), na=TRUE) + ggtitle(.) +
