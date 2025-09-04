@@ -35,26 +35,34 @@ for sid in SID:
 
 # targets ==========================================
 
-# outputs (outs/*.rds)
+# Human Tonsil Atlas-based
+# scRNA-seq reference profiles
 sce = "data/ref/sce.rds"
 mtx = "data/ref/mtx.rds"
 mty = "data/ref/mty,{sub}.rds"
+
+# outputs (outs/*.rds)
+res = "outs/res-{sid}"
 raw = "outs/raw-{sid}"
+fil = "outs/fil-{sid}.rds"
+pol = "outs/pol-{sid}.parquet"
+# regions
 roi = "outs/roi-{sid}.rds"
 gcs = "outs/gcs-{sid}.rds"
 epi = "outs/epi-{sid}.rds"
-fil = "outs/fil-{sid}.rds"
-pro = "outs/pro-{sid}.rds"
-ccc = "outs/ccc-{sid}.rds"
-ist = "outs/ist-{sid}.rds"
-lv1 = "outs/lv1-{sid}.rds"
+# downstream
 ctx = "outs/ctx-{sid}.rds"
 cty = "outs/cty-{sid}.rds"
+pro = "outs/pro-{sid}.rds"
+ccc = "outs/ccc-{sid}.rds"
+# clustering
+ist = "outs/ist-{sid}.rds"
+lv1 = "outs/lv1-{sid}.rds"
+# subclustering
 sub = "outs/sub-{sid},{sub}.rds"
 jst = "outs/jst-{sid},{sub}.rds"
 lv2 = "outs/lv2-{sid},{sub}.rds"
-pol = "outs/pol-{sid}.parquet"
-
+# pseudobulks
 pbs = "outs/pbs.rds"
 pbt = "outs/pbt.rds"
 qbs = "outs/qbs-{sub}.rds"
@@ -139,16 +147,35 @@ for x,y,z in zip(foo.x, foo.y, foo.z):
 
 rule all:
 	input:
-		sce, plt, qlt,
-		mtx, expand(mty, sub=SUB), 
+	    # visuals
+		plt, qlt,
+		# reference
+		sce, mtx, expand(mty, sub=SUB), 
+		# setup
+		expand([raw, fil, pol], sid=SID),
+		# clustering
+		expand([ist, lv1], sid=SID),
+		# subclustering
+		expand([jst, lv2], sid=SID, sub=SUB),
+		# pseudobulks
 		pbs, pbt, expand([qbs, qbt], sub=SUB),
-		expand([raw, pol, fil, pro, ist], sid=SID),
+		# regions
+		expand([roi, epi, gcs], sid=SID),
+		# downstream
 		expand([ctx, cty, ccc], sid=SID),
-		expand([roi, gcs, epi], sid=SID)
-		#expand([sub, jst], sid=SID, sub=SUB)#,		plt
-		#expand([pbs, qbs], sub=SUB)
+		# collection
+		expand([res], sid=SID)
 
 def pool(x): return(x if type(x) == str else ";".join(x))
+
+# write session info to .txt file
+rule inf:
+    input:	"code/_inf.R"
+    output:	"sess_info.txt"
+    log:	"logs/inf.Rout" 
+    shell:	'''R CMD BATCH\\
+    --no-restore --no-saves "--args\\
+    {output}" {input} {log}'''
 
 # reference ========================================
 
@@ -398,6 +425,18 @@ for x in ["pbs", "pbt", "qbs", "qbt"]:
 		shell: '''{R} CMD BATCH\\
 		--no-restore --no-save "--args wcs={wildcards}\
 		{params} {output} ths={threads}" {input[0]} {log}'''
+
+# collection
+rule res:
+    priority: 10
+    input:  "code/09-res.R", "outs/raw-{sid}",
+            expand("outs/{out}-{{sid}},{sub}.rds", out=["jst", "lv2"], sub=SUB),
+            expand("outs/{out}-{{sid}}.rds", out=["fil", "ist", "lv1", "epi", "gcs", "cty", "ccc"])
+    output: directory("outs/res-{sid}")
+    log:    "logs/res-{sid}.Rout"
+    shell: '''R CMD BATCH\\
+    --no-restore --no-save "--args wcs={wildcards}\
+    {input} {output}" {input[0]} {log}'''
 
 # visualization ====================================
 
