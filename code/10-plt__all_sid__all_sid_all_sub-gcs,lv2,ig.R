@@ -87,13 +87,6 @@ rnk <- mu |>
         TRUE ~ value)) |>
     group_by(name) |>
     mutate(rnk=rank(value)) |>
-    # mutate(rnk=case_when(
-    #     name == "IGHM" ~ 1*rnk,
-    #     name == "IGHD" ~ 2*rnk,
-    #     name == "IGHG1" ~ 3*rnk,
-    #     name == "IGHA1" ~ 4*rnk,
-    #     name == "IGHG2" ~ 5*rnk,
-    #     TRUE ~ rnk)) |>
     group_by(roi) |>
     summarise_at("rnk", mean)
 mu$rnk <- rnk$rnk[match(mu$roi, rnk$roi)]

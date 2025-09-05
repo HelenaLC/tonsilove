@@ -1,12 +1,13 @@
 # args <- list(
 #     list.files("outs", "^epi", full.names=TRUE),
 #     list.files("outs", "lv2", full.names=TRUE),
-#     "plts/epi,lv2,pca.pdf")
+#     "plts/epi,lv2,eda.pdf")
 
 # dependencies
 suppressPackageStartupMessages({
     library(dplyr)
     library(ggrepel)
+    library(scuttle)
     library(HDF5Array)
     library(SpatialExperiment)
     library(SingleCellExperiment)
@@ -58,9 +59,9 @@ sq <- c(
     "A2.EPI24", "A2.EPI26", "A2.EPI27")
 pb$typ <- ifelse(pb$roj %in% sq, "sq", "cr")
 
-ps <- lapply(1, \(.) {
+ps <- lapply("A2", \(.) {
     set.seed(240808)
-    qb <- pb[, pb$sid == "A2"]
+    qb <- pb[, pb$sid == .]
     qb <- scater::runPCA(qb, subset_row=gs, ncomponents=5)
     pc <- reducedDim(qb, "PCA")
     df <- data.frame(colData(qb), pc)
