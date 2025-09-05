@@ -1,40 +1,40 @@
-# args <- list(
-#     "data/ref/sce.rds",
-#     list.files("outs", "lv1", full.names=TRUE))
-# 
-# # dependencies
-# suppressPackageStartupMessages({
-#     library(dplyr)
-#     library(patchwork)
-#     library(SingleCellExperiment)
-# })
-# 
-# # loading
-# seq <- data.frame(colData(readRDS(args[[1]])))
-# sid <- gsub(".*([A-Z][0-9]).*", "\\1", args[[2]])
-# img <- lapply(args[[2]], \(.)
-#     data.frame(kid=readRDS(.)$clust)) |>
-#     setNames(sid) |> bind_rows(.id="sid")
-# 
-# # harmonize labels
-# lab <- "annotation_level_1"
-# kid <- as.character(seq[[lab]])
-# lv2 <- "annotation_20230508"
-# idx <- grep("NK|ILC", seq[[lv2]])
-# kid[idx] <- "ILC"
-# idx <- kid == "myeloid"
-# new <- seq[[lv2]][idx]
-# new[grep("DC", new)] <- "DC"
-# new[grep("Mono", new)] <- "mono"
-# new[grep("Neutro", new)] <- "gran"
-# new[grep("Macr|Slan", new)] <- "macro"
-# kid[idx] <- new
-# old <- c("NBC_MBC", "CD4_T", "Cytotoxic", "Mast", "epithelial")
-# new <- c("NBC/MBC", "Th", "Tc", "mast", "epi")
-# idx <- match(kid, old, nomatch=0)
-# kid[idx != 0] <- new[idx]
-# rmv <- grepl("^pre|Cycling", kid)
-# kid[rmv] <- NA; table(seq$kid <- kid)
+# ist <- list.files("outs", "lv1", full.names=TRUE)
+# args <- list("data/ref/sce.rds", ist, "plts/img_vs_seq.pdf")
+
+# dependencies
+suppressPackageStartupMessages({
+    library(dplyr)
+    library(ggplot2)
+    library(patchwork)
+    library(SingleCellExperiment)
+})
+
+# loading
+seq <- data.frame(colData(readRDS(args[[1]])))
+sid <- gsub(".*([A-Z][0-9]).*", "\\1", args[[2]])
+img <- lapply(args[[2]], \(.)
+    data.frame(kid=readRDS(.)$clust)) |>
+    setNames(sid) |> bind_rows(.id="sid")
+
+# harmonize labels
+lab <- "annotation_level_1"
+kid <- as.character(seq[[lab]])
+lv2 <- "annotation_20230508"
+idx <- grep("NK|ILC", seq[[lv2]])
+kid[idx] <- "ILC"
+idx <- kid == "myeloid"
+new <- seq[[lv2]][idx]
+new[grep("DC", new)] <- "DC"
+new[grep("Mono", new)] <- "mono"
+new[grep("Neutro", new)] <- "gran"
+new[grep("Macr|Slan", new)] <- "macro"
+kid[idx] <- new
+old <- c("NBC_MBC", "CD4_T", "Cytotoxic", "Mast", "epithelial")
+new <- c("NBC/MBC", "Th", "Tc", "mast", "epi")
+idx <- match(kid, old, nomatch=0)
+kid[idx != 0] <- new[idx]
+rmv <- grepl("^pre|Cycling", kid)
+kid[rmv] <- NA; table(seq$kid <- kid)
 
 # wrangling
 df <- list(seq=seq, img=img) |>
@@ -108,49 +108,49 @@ p <- lapply(names(sub), \(.) {
     wrap_plots(p, q, ncol=1) & scale_x_discrete(limits=\(.) rev(.))
 }) |> wrap_plots(nrow=1) & theme(legend.margin=margin())
 
-# # for each seq-based sample,
-# # quantify top-5 subpopulations
-# # & their relative contribution
-# fqs <- df |>
-#     group_by(sid, kid) |>
-#     dplyr::count() |>
-#     group_by(sid) |>
-#     mutate(p=n/sum(n))
-# top <- fqs |>
-#     filter(grepl("seq", sid)) |>
-#     group_by(kid) |>
-#     summarise_at("p", mean) |>
-#     slice_max(p, n=5) |>
-#     pull(kid) |> paste()
-# a <- fqs |>
-#     filter(kid %in% top) |>
-#     group_by(sid) |>
-#     summarise_at("p", sum) |>
-#     mutate(typ=df$typ[match(sid, df$sid)]) |>
-#     arrange(-p) |> mutate(sid=factor(sid, sid))
-# b <- group_by(a, typ) |>
-#     summarise_at("p", mean) |>
-#     mutate(q=round(p*100, 2)) |>
-#     mutate(q=sprintf("%.2f", q))
-# hl <- c("grey50", "black")[1+grepl("img", sort(unique(a$sid)))]
-# q <- ggplot(a, aes(p, sid)) + 
-#     geom_col(aes(fill=typ), alpha=1/3) +
-#     geom_vline(aes(col=typ, xintercept=p), b, lty=2, linewidth=0.2) +
-#     scale_x_continuous(limits=c(0, 1), breaks=b$p, labels=paste0(b$q, "%")) + 
-#     scale_color_manual(values=c("red", "blue")) +
-#     scale_fill_manual(values=c("red", "blue")) +
-#     .thm_fig_d("bw") + theme(
-#         aspect.ratio=2/3,
-#         legend.position="none",
-#         panel.grid=element_blank(),
-#         axis.title=element_blank(),
-#         axis.ticks=element_blank(),
-#         plot.title=element_text(hjust=0.5),
-#         axis.text.y=element_text(color=hl),
-#         axis.text.x=element_text(color=c("red", "blue"))) +
-#     coord_cartesian(expand=FALSE) + ggtitle(sprintf(
-#         "contribution of 5 most frequent\nsubpopulations (%s)", 
-#         paste(top, collapse=", ")))
+# for each seq-based sample,
+# quantify top-5 subpopulations
+# & their relative contribution
+fqs <- df |>
+    group_by(sid, kid) |>
+    dplyr::count() |>
+    group_by(sid) |>
+    mutate(p=n/sum(n))
+top <- fqs |>
+    filter(grepl("seq", sid)) |>
+    group_by(kid) |>
+    summarise_at("p", mean) |>
+    slice_max(p, n=5) |>
+    pull(kid) |> paste()
+a <- fqs |>
+    filter(kid %in% top) |>
+    group_by(sid) |>
+    summarise_at("p", sum) |>
+    mutate(typ=df$typ[match(sid, df$sid)]) |>
+    arrange(-p) |> mutate(sid=factor(sid, sid))
+b <- group_by(a, typ) |>
+    summarise_at("p", mean) |>
+    mutate(q=round(p*100, 2)) |>
+    mutate(q=sprintf("%.2f", q))
+hl <- c("grey50", "black")[1+grepl("img", sort(unique(a$sid)))]
+q <- ggplot(a, aes(p, sid)) +
+    geom_col(aes(fill=typ), alpha=1/3) +
+    geom_vline(aes(col=typ, xintercept=p), b, lty=2, linewidth=0.2) +
+    scale_x_continuous(limits=c(0, 1), breaks=b$p, labels=paste0(b$q, "%")) +
+    scale_color_manual(values=c("red", "blue")) +
+    scale_fill_manual(values=c("red", "blue")) +
+    .thm_fig_d("bw") + theme(
+        aspect.ratio=2/3,
+        legend.position="none",
+        panel.grid=element_blank(),
+        axis.title=element_blank(),
+        axis.ticks=element_blank(),
+        plot.title=element_text(hjust=0.5),
+        axis.text.y=element_text(color=hl),
+        axis.text.x=element_text(color=c("red", "blue"))) +
+    coord_cartesian(expand=FALSE) + ggtitle(sprintf(
+        "contribution of 5 most frequent\nsubpopulations (%s)",
+        paste(top, collapse=", ")))
 
 # saving
 ng <- length(gg <- list(p, q))
@@ -162,5 +162,5 @@ for (. in seq_along(gg)) {
         height=(hs[.])/2.54)
     print(gg[[.]]); dev.off()
 }
-qpdf::pdf_combine(unlist(tf), output="plts/img_vs_seq.pdf")
+qpdf::pdf_combine(unlist(tf), output=args[[3]])
   
