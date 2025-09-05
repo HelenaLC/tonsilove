@@ -1,10 +1,10 @@
-wcs <- list(sid="A2")
-args <- as.list(sprintf(c(
-    "outs/gcs-%s.rds", 
-    "outs/pol-%s.parquet", 
-    "qlts/gcs,lv2,tbm,%s.pdf"), wcs$sid))
-ist <- list.files("outs", sprintf("lv2-%s", wcs$sid), full.names=TRUE)
-args <- c(args[1], list(ist), args[-1])
+# wcs <- list(sid="A2")
+# args <- as.list(sprintf(c(
+#     "outs/gcs-%s.rds",
+#     "outs/pol-%s.parquet",
+#     "qlts/gcs,lv2,tbm,%s.pdf"), wcs$sid))
+# ist <- list.files("outs", sprintf("lv2-%s", wcs$sid), full.names=TRUE)
+# args <- c(args[1], list(ist), args[-1])
 
 # dependencies
 suppressPackageStartupMessages({
@@ -50,7 +50,7 @@ pal[pc] <- "cyan"
 
 # plotting
 is <- split(colnames(sce), sce$roi)
-ps <- lapply("GC06", \(gc) {
+ps <- lapply(head(names(is), 10), \(gc) {
     ch <- concaveman(xy[is[[gc]], ])
     yx <- st_coordinates(st_buffer(st_polygon(list(ch)), 0.05))
     js <- point.in.polygon(xy[,1], xy[,2], yx[,1], yx[,2])
@@ -60,6 +60,6 @@ ps <- lapply("GC06", \(gc) {
             aes(V1, V2), ch, inherit.aes=FALSE,
             fill=NA, col="black", linewidth=0.2)
 })
-ps[[1]]
+
 # saving
 .pdf(ps, args[[4]], 5)
