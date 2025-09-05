@@ -114,8 +114,7 @@ foo = "code/10-plt__{x}__{y}-{{a}},{{b}},{{p}}.R"
 fuu = "code/10-qlt__{x}__{y}-{{a}},{{b}},{{p}}.R"
 for xy in [
 	["sid", "sid"],
-	["sid", "one_sid_all_sub"],
-	["one_sid_all_sub", "one_sid_all_sub"]]:
+	["sid", "one_sid_all_sub"]]:
 	bar = glob_wildcards(expand(foo, x=xy[0], y=xy[1])[0])
 	for a,b,p in zip(bar.a, bar.b, bar.p):
 		plt += expand(pdf, out1=a, out2=b, plt=p, sid=SID)
@@ -508,7 +507,6 @@ for by in [
         --no-restore --no-save "--args wcs={wildcards}\
         {params} {output}" {input[0]} {log}'''
 
-# plt by sid
 pat = "plt__{by1}__{by2}-{{out1}},{{out2}},{{plt}}"
 for by in [
     ["sid","sid"],
@@ -527,26 +525,6 @@ for by in [
         --no-restore --no-save "--args wcs={wildcards}\
         {params} {output}" {input[0]} {log}'''
 
-# qlt by sid
-pat = "qlt__{by1}__{by2}-{{out1}},{{out2}},{{plt}}"
-for by in [
-    ["sid","sid"],
-    ["sid","one_sid_all_sub"],
-    ["one_sid_all_sub","one_sid_all_sub"]]:
-    rule:
-        name:   "qlt__%s__%s" % (by[0], by[1])
-        priority: 99
-        input:  expand("code/10-"+pat+".R", by1=by[0], by2=by[1]),
-                a = out(by[0], 1), b = out(by[1], 2),
-                c = "outs/pol-{x}.parquet"
-        params: lambda wc, input: pool(input.a),
-                lambda wc, input: pool(input.b)
-        log:    expand("logs/%s,{{x}}.Rout" % pat, by1=by[0], by2=by[1])
-        output: "qlts/{out1},{out2},{plt},{x}.pdf"
-        shell: '''{R} CMD BATCH\
-        --no-restore --no-save "--args wcs={wildcards}\
-        {params} {input[3]} {output}" {input[0]} {log}'''
-
 pat = "plt__{by1}__{by2}-{{out1}},{{out2}},{{plt}}"
 for by in [
 	["sid_sub","sid_sub"]]:
@@ -562,3 +540,22 @@ for by in [
         shell: '''{R} CMD BATCH\
         --no-restore --no-save "--args wcs={wildcards}\
         {params} {output}" {input[0]} {log}'''
+
+pat = "qlt__{by1}__{by2}-{{out1}},{{out2}},{{plt}}"
+for by in [
+    ["sid","sid"],
+    ["sid","one_sid_all_sub"]]:
+    rule:
+        name:   "qlt__%s__%s" % (by[0], by[1])
+        priority: 99
+        input:  expand("code/10-"+pat+".R", by1=by[0], by2=by[1]),
+                "outs/pol-{x}.parquet", 
+                a = out(by[0], 1),
+                b = out(by[1], 2),
+        params: lambda wc, input: pool(input.a),
+                lambda wc, input: pool(input.b)
+        log:    expand("logs/%s,{{x}}.Rout" % pat, by1=by[0], by2=by[1])
+        output: "qlts/{out1},{out2},{plt},{x}.pdf"
+        shell: '''{R} CMD BATCH\
+        --no-restore --no-save "--args wcs={wildcards}\
+        {params} {input[1]} {output}" {input[0]} {log}'''

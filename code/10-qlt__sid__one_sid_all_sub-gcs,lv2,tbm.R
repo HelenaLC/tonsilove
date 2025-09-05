@@ -50,7 +50,7 @@ pal[pc] <- "cyan"
 
 # plotting
 is <- split(colnames(sce), sce$roi)
-ps <- lapply(head(names(is), 10), \(gc) {
+ps <- lapply(names(is), \(gc) {
     ch <- concaveman(xy[is[[gc]], ])
     yx <- st_coordinates(st_buffer(st_polygon(list(ch)), 0.05))
     js <- point.in.polygon(xy[,1], xy[,2], yx[,1], yx[,2])
