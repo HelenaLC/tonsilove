@@ -1,7 +1,6 @@
 suppressPackageStartupMessages({
     library(alabaster.sce)
     library(arrow)
-    library(AUCell)
     library(dplyr)
     library(BiocParallel)
     library(BiocSingular)
@@ -19,14 +18,12 @@ suppressPackageStartupMessages({
     library(patchwork)
     library(RANN)
     library(reticulate)
-    library(RSpectra)
     library(scater)
     library(scran)
     library(scuttle)
     library(Seurat)
     library(sf)
     library(SingleCellExperiment)
-    library(slingshot)
     library(sp)
     library(SparseArray)
     library(tidyr)
@@ -38,7 +35,7 @@ writeLines(capture.output(sessionInfo()), args[[1]])
 #if (!require(bm <- "BiocManager", quietly=TRUE)) install.packages(bm)
 
 #BiocManager::install(c(
-#    "alabaster.sce", "arrow", "AUCell", "dplyr", "BiocParallel", "BiocSingular", "concaveman", 
+#    "alabaster.sce", "arrow", "dplyr", "BiocParallel", "BiocSingular", "concaveman", 
 #    "ggnewscale", "ggplot2", "ggpmisc", "ggrastr", "HDF5Array", "InSituType", "jsonlite", "Matrix",
-#    "matrixStats", "pals", "patchwork", "RANN", "reticulate", "RSpectra", "scater", "scran", "scuttle", 
-#    "Seurat", "sf", "SingleCellExperiment", "slingshot", "sp", "SparseArray", "tidyr", "zellkonverter", "zoo"))
+#    "matrixStats", "pals", "patchwork", "RANN", "reticulate", "scater", "scran", "scuttle", 
+#    "Seurat", "sf", "SingleCellExperiment", "sp", "SparseArray", "tidyr", "zellkonverter", "zoo"))

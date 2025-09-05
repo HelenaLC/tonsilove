@@ -4,6 +4,8 @@
 
 - R version and library have are specified in the `config.yaml` file  
   (e.g., `R: "R_LIBS_USER=/path/to/library /path/to/R/executable"`)
+- package dependencies (including installation commands) are  
+provided in `code/_inf.R`, and are captured in *sess_info.txt*
 - `.Rprofile` is used for handling command line arguments
 - `logs/` capture `.Rout` files from `R CMD BATCH` executions
 - intermediate results are written to `outs/` (as *.rds*)
